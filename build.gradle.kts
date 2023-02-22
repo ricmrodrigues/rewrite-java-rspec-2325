@@ -30,7 +30,7 @@ java {
 }
 
 // Set as appropriate for your organization
-group = "com.yourorg"
+group = "com.sharpdev"
 description = "Rewrite recipes."
 
 repositories {
