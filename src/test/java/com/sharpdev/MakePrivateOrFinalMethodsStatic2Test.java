@@ -7,14 +7,14 @@ import org.openrewrite.test.RewriteTest;
 
 import static org.openrewrite.java.Assertions.java;
 
-class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
+class MakePrivateOrFinalMethodsStatic2Test implements RewriteTest {
 
     //Note, you can define defaults for the RecipeSpec and these defaults will be used for all tests.
     //In this case, the recipe and the parser are common. See below, on how the defaults can be overridden
     //per test.
     @Override
     public void defaults(RecipeSpec spec) {
-        spec.recipe(new MakePrivateOrFinalMethodsStatic())
+        spec.recipe(new MakePrivateOrFinalMethodsStatic2())
             .parser(JavaParser.fromJavaVersion()
                 .logCompilationWarningsAndErrors(true));
     }
@@ -38,28 +38,7 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
                     """
             )
         );
-    } 
-
-    @Test
-    void emptyPrivateMethodIsConvertedToStatic() {
-        rewriteRun(
-            java("""
-                    class Test {
-                        private void finalMethod() {
-
-                        }
-                    }
-                    """,
-                """
-                    class Test {
-                        private static void finalMethod() {
-
-                        }
-                    }
-                    """
-            )
-        );
-    }      
+    }  
 
     @Test
     void finalWithNonStaticFieldAssignmentIsUnchanged() {
@@ -76,22 +55,6 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
             )
         );
     } 
-
-    @Test
-    void privateWithNonStaticFieldAssignmentIsUnchanged() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        private String something;
-
-                        private void finalMethod() {
-                            this.something = \"testing\";
-                        }
-                    }
-                    """
-            )
-        );
-    }     
 
     @Test
     void finalWithStaticFieldAccessIsConvertedToStatic() {
@@ -119,31 +82,6 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
     } 
 
     @Test
-    void privateWithStaticFieldAccessIsConvertedToStatic() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        static String something;
-
-                        private void finalMethod() {
-                            System.out.println(something);
-                        }
-                    }
-                    """,
-                """
-                    class Test {
-                        static String something;
-
-                        private static void finalMethod() {
-                            System.out.println(something);
-                        }
-                    }
-                    """
-            )
-        );
-    }     
-
-    @Test
     void finalWithNonStaticFieldAccessIsUnchanged() {
         rewriteRun(
             java("""                    
@@ -157,23 +95,7 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
                     """
             )
         );
-    }  
-
-    @Test
-    void privateWithNonStaticFieldAccessIsUnchanged() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        String something;
-
-                        private void finalMethod() {
-                            System.out.println(something);
-                        }
-                    }
-                    """
-            )
-        );
-    }         
+    }     
 
     @Test
     void finalWithStaticFieldAssignmentIsConvertedToStatic() {
@@ -198,30 +120,5 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
                     """
             )
         );
-    } 
-
-    @Test
-    void privateWithStaticFieldAssignmentIsConvertedToStatic() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        static String something;
-
-                        private void finalMethod() {
-                            something = \"testing\";
-                        }
-                    }
-                    """,
-                """
-                    class Test {
-                        static String something;
-
-                        private static void finalMethod() {
-                            something = \"testing\";
-                        }
-                    }
-                    """
-            )
-        );
-    }                
+    }            
 }

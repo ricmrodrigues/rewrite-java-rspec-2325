@@ -16,6 +16,8 @@
 package com.sharpdev;
 
 import java.util.Collections;
+import java.util.Set;
+
 import org.openrewrite.ExecutionContext;
 import org.openrewrite.Incubating;
 import org.openrewrite.Recipe;
@@ -31,6 +33,7 @@ import org.openrewrite.marker.Markers;
 
 @Incubating(since = "7.0.0")
 public class MakePrivateOrFinalMethodsStatic extends Recipe {
+
     @Override
     public String getDisplayName() {
         return "Make private or final methods static if they do not access any instance data";
@@ -42,8 +45,14 @@ public class MakePrivateOrFinalMethodsStatic extends Recipe {
     }
 
     @Override
+    public Set<String> getTags() {
+        return Collections.singleton("RSPEC-2325");
+    }    
+
+    @Override
     protected JavaIsoVisitor<ExecutionContext> getVisitor() {
-        return new JavaIsoVisitor<ExecutionContext>() {
+        return new JavaIsoVisitor<ExecutionContext>() {   
+            
             @Override
             public J.MethodDeclaration visitMethodDeclaration(J.MethodDeclaration method, ExecutionContext executionContext) {
                 J.ClassDeclaration classDecl = getCursor().firstEnclosing(J.ClassDeclaration.class);
@@ -65,6 +74,7 @@ public class MakePrivateOrFinalMethodsStatic extends Recipe {
                         J.FieldAccess field = (J.FieldAccess) statement;
                         J.Identifier identifier = (J.Identifier) field.getTarget();
                         Variable variable = identifier.getFieldType();
+
                         if (TypeUtils.isOfClassType(variable.getOwner(), classDecl.getName().getSimpleName())) {
                             return true;
                         }                 
@@ -94,6 +104,7 @@ public class MakePrivateOrFinalMethodsStatic extends Recipe {
             }            
 
             private boolean checkFieldAccess(org.openrewrite.java.tree.Expression expression, J.ClassDeclaration classDecl) {
+                //TODO we need a better way here - is this safe as a check? how do we know it's not static?
                 if (expression instanceof J.FieldAccess) {                    
                     J.FieldAccess field = (J.FieldAccess) expression;
                     J.Identifier identifier = (J.Identifier) field.getTarget();
