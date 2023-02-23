@@ -130,7 +130,6 @@ public class MakePrivateOrFinalMethodsStatic extends Recipe {
                         if (TypeUtils.isOfClassType(variable.getOwner(), classDecl.getName().getSimpleName())) {
                             return true;
                         }                        
-                        return true;
                     }                            
                 }
 
