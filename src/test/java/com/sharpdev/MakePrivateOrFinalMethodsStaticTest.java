@@ -227,6 +227,31 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
     }    
 
     @Test
+    void localVariableNotUsingInstanceFieldIsConvertedToStatic() {
+        rewriteRun(
+            java("""                    
+                    class Test {
+                        private String something;
+
+                        private void finalMethod() {
+                            boolean bla = false;
+                        }
+                    }
+                    """,
+                    """                    
+                    class Test {
+                        private String something;
+
+                        private static void finalMethod() {
+                            boolean bla = false;
+                        }
+                    }
+                    """                    
+            )
+        );
+    } 
+
+    @Test
     void publicWithNonStaticFieldAssignmentIsUnchangedUsingThis() {
         rewriteRun(
             java("""                    
