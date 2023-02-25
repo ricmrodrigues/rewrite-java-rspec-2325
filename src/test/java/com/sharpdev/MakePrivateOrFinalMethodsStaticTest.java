@@ -1,44 +1,124 @@
+/*
+ * Copyright 2020 the original author or authors.
+ * <p>
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * <p>
+ * https://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.sharpdev;
 
 import org.junit.jupiter.api.Test;
-import org.openrewrite.java.JavaParser;
 import org.openrewrite.test.RecipeSpec;
 import org.openrewrite.test.RewriteTest;
 
 import static org.openrewrite.java.Assertions.java;
 
+@SuppressWarnings("ALL")
 class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
 
-    //Note, you can define defaults for the RecipeSpec and these defaults will be used for all tests.
-    //In this case, the recipe and the parser are common. See below, on how the defaults can be overridden
-    //per test.
     @Override
     public void defaults(RecipeSpec spec) {
-        spec.recipe(new MakePrivateOrFinalMethodsStatic())
-            .parser(JavaParser.fromJavaVersion()
-                .logCompilationWarningsAndErrors(true));
+        spec.recipe(new MakePrivateOrFinalMethodsStatic());
     }
 
     @Test
-    void emptyFinalMethodIsConvertedToStatic() {
+    void finalCallingStaticMethodChangesCallerToStaticOnNestedClass() {
+        rewriteRun(
+            java("""
+                    class Outer {
+                        class Test {
+                            static void finalMethod1() {
+
+                            }
+
+                            final void finalMethod2() {
+                                finalMethod1();
+                            }
+                        }
+                    }
+                    """,
+                """
+                    class Outer {
+                        class Test {
+                            static void finalMethod1() {
+
+                            }
+
+                            final static void finalMethod2() {
+                                finalMethod1();
+                            }
+                        }
+                    }
+                    """                    
+            )
+        );
+    } 
+
+    @Test
+    void finalCallingStaticMethodChangesCallerToStatic() {
         rewriteRun(
             java("""
                     class Test {
-                        final void finalMethod() {
+                        static void finalMethod1() {
 
+                        }
+
+                        final void finalMethod2() {
+                            finalMethod1();
                         }
                     }
                     """,
                 """
                     class Test {
-                        final static void finalMethod() {
+                        static void finalMethod1() {
 
                         }
+
+                        final static void finalMethod2() {
+                            finalMethod1();
+                        }
                     }
-                    """
+                    """                    
             )
         );
     } 
+
+    @Test
+    void privateCallingStaticMethodChangesCallerToStatic() {
+        rewriteRun(
+            java("""
+                    class Test {
+                        static void finalMethod1() {
+
+                        }
+
+                        private void finalMethod2() {
+                            finalMethod1();
+                        }
+                    }
+                    """,
+                """
+                    class Test {
+                        static void finalMethod1() {
+
+                        }
+
+                        private static void finalMethod2() {
+                            finalMethod1();
+                        }
+                    }
+                    """                    
+            )
+        );
+    }     
 
     @Test
     void emptyPrivateMethodIsConvertedToStatic() {
@@ -62,7 +142,28 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
     }      
 
     @Test
-    void finalWithNonStaticFieldAssignmentIsUnchanged() {
+    void emptyFinalMethodIsConvertedToStatic() {
+        rewriteRun(
+            java("""
+                    class Test {
+                        final void finalMethod() {
+
+                        }
+                    }
+                    """,
+                """
+                    class Test {
+                        final static void finalMethod() {
+
+                        }
+                    }
+                    """
+            )
+        );
+    }   
+
+    @Test
+    void finalWithNonStaticFieldAssignmentIsUnchangedUsingThis() {
         rewriteRun(
             java("""                    
                     class Test {
@@ -78,7 +179,23 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
     } 
 
     @Test
-    void privateWithNonStaticFieldAssignmentIsUnchanged() {
+    void finalWithNonStaticFieldAssignmentIsUnchangedNotUsingThis() {
+        rewriteRun(
+            java("""                    
+                    class Test {
+                        private String something;
+
+                        final void finalMethod() {
+                            something = "testing";
+                        }
+                    }
+                    """
+            )
+        );
+    } 
+
+    @Test
+    void privateWithNonStaticFieldAssignmentIsUnchangedUsingThis() {
         rewriteRun(
             java("""                    
                     class Test {
@@ -86,6 +203,22 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
 
                         private void finalMethod() {
                             this.something = "testing";
+                        }
+                    }
+                    """
+            )
+        );
+    }     
+
+    @Test
+    void privateWithNonStaticFieldAssignmentIsUnchangedNotUsingThis() {
+        rewriteRun(
+            java("""                    
+                    class Test {
+                        private String something;
+
+                        private void finalMethod() {
+                            something = "testing";
                         }
                     }
                     """
@@ -143,37 +276,133 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
         );
     }     
 
-    // @Test
-    // void finalWithNonStaticFieldAccessIsUnchanged() {
-    //     rewriteRun(
-    //         java("""                    
-    //                 class Test {
-    //                     String something;
+    @Test
+    void finalInvokeExternalMethodWithInstanceFieldIsUnchangedUsingThis() {
+        rewriteRun(
+            java("""                    
+                    class Test {
+                        String something;
 
-    //                     final void finalMethod() {
-    //                         System.out.println(something);
-    //                     }
-    //                 }
-    //                 """
-    //         )
-    //     );
-    // }  
+                        final void finalMethod() {
+                            System.out.println(this.something);
+                        }
+                    }
+                    """
+            )
+        );
+    }  
 
-    // @Test
-    // void privateWithNonStaticFieldAccessIsUnchanged() {
-    //     rewriteRun(
-    //         java("""                    
-    //                 class Test {
-    //                     String something;
+    @Test
+    void finalInvokeExternalMethodWithInstanceFieldIsUnchangedNotUsingThis() {
+        rewriteRun(
+            java("""                    
+                    class Test {
+                        String something;
 
-    //                     private void finalMethod() {
-    //                         System.out.println(something);
-    //                     }
-    //                 }
-    //                 """
-    //         )
-    //     );
-    // }         
+                        final void finalMethod() {
+                            System.out.println(something);
+                        }
+                    }
+                    """
+            )
+        );
+    }  
+
+    @Test
+    void privateInvokeExternalMethodWithInstanceFieldIsUnchangedUsingThis() {
+        rewriteRun(
+            java("""                    
+                    class Test {
+                        String something;
+
+                        private void finalMethod() {
+                            System.out.println(this.something);
+                        }
+                    }
+                    """
+            )
+        );
+    }         
+
+    @Test
+    void privateInvokeExternalMethodWithInstanceFieldIsUnchangedNotUsingThis() {
+        rewriteRun(
+            java("""                    
+                    class Test {
+                        String something;
+
+                        private void finalMethod() {
+                            System.out.println(something);
+                        }
+                    }
+                    """
+            )
+        );
+    }  
+
+    @Test
+    void finalWithInstanceFieldAssignmentIsUnchangedUsingThis() {
+        rewriteRun(
+            java("""                    
+                    class Test {
+                        String something;
+
+                        final void finalMethod() {
+                            this.something = "testing";
+                        }
+                    }
+                    """
+            )
+        );
+    } 
+
+    @Test
+    void finalWithInstanceFieldAssignmentIsUnchangedNotUsingThis() {
+        rewriteRun(
+            java("""                    
+                    class Test {
+                        String something;
+
+                        final void finalMethod() {
+                            something = "testing";
+                        }
+                    }
+                    """
+            )
+        );
+    } 
+
+    @Test
+    void privateWithInstanceFieldAssignmentIsUnchangedUsingThis() {
+        rewriteRun(
+            java("""                    
+                    class Test {
+                        String something;
+
+                        private void finalMethod() {
+                            this.something = "testing";
+                        }
+                    }
+                    """
+            )
+        );
+    }  
+
+    @Test
+    void privateWithInstanceFieldAssignmentIsUnchangedNotUsingThis() {
+        rewriteRun(
+            java("""                    
+                    class Test {
+                        String something;
+
+                        private void finalMethod() {
+                            something = "testing";
+                        }
+                    }
+                    """
+            )
+        );
+    }     
 
     @Test
     void finalWithStaticFieldAssignmentIsConvertedToStatic() {
@@ -223,5 +452,24 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
                     """
             )
         );
-    }                
+    }  
+    
+
+    @Test
+    void privateWithInstanceFieldAssignmentOperationIsUnchangedNotUsingThis() {
+        rewriteRun(
+            java("""                    
+                    class Test {
+                        Int something = 0;
+
+                        private void finalMethod() {
+                            something += 1;
+                        }
+                    }
+                    """
+            )
+        );
+    }        
+    //TODO on a something++ is that working?
+    //TODO check more expressions!
 }
