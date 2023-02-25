@@ -63,14 +63,7 @@ public class MakePrivateOrFinalMethodsStatic extends Recipe {
                     return md;
                 }
 
-                // // if method is empty let's ignore, for now 
-                // if (md.getBody().getStatements().isEmpty()) {
-                //     return md;
-                // }
-
                 J.ClassDeclaration classDecl = getCursor().dropParentUntil(parent -> parent instanceof J.ClassDeclaration).getValue();
-
-                System.out.println(TreeVisitingPrinter.printTree(getCursor()));
 
                 AtomicBoolean foundInstanceAccess = FindInstanceUsagesWithinMethod.find(getCursor().getValue(), md.getBody(), classDecl);
                 if (!foundInstanceAccess.get()) {
