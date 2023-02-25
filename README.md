@@ -1,19 +1,7 @@
-## Rewrite recipe starter
+## RSPEC-2325 recipe
 
-This repository serves as a template for building your own recipe JARs and publishing them to a repository where they can be applied on [public.moderne.io](https://public.moderne.io) against all of the public OSS code that is included there.
-
-We've provided a sample recipe (NoGuavaListsNewArray) and a sample test class. Both of these exist as placeholders, and they should be replaced by whatever recipe you are interested in writing.
-
-To begin, fork this repository and customize it by:
-
-1. Changing the root project name in `settings.gradle.kts`.
-2. Changing the `group` in `build.gradle.kts`.
-3. Changing the package structure from `com.yourorg` to whatever you want.
-
-## Detailed Guide
-
-There is a [comprehensive getting started guide](https://docs.openrewrite.org/getting-started/recipe-development-environment)
-available in the OpenRewrite docs that provides more details than the below README.
+This repo contains a recipe to fix the https://rules.sonarsource.com/java/RSPEC-2325
+"private" and "final" methods that don't access instance data should be "static"
 
 ## Local Publishing for Testing
 
