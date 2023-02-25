@@ -1012,4 +1012,122 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
             )
         );
     }       
+
+    @Test
+    void LambdaUsingInstanceFieldDoesntChange() {
+        rewriteRun(
+            java("""                    
+                    import java.util.ArrayList;
+                    import java.util.List;
+                    import java.util.stream.Collectors;
+                    
+                    public class A {
+                    
+                        List<Integer> a = new ArrayList<>();
+                    
+                        private void foo() {
+                            this.a = this.a.stream()
+                                    .map(it -> it + 1)
+                                    .collect(Collectors.toList());
+                        }
+                    }
+                    """
+            )
+        );
+    } 
+
+    @Test
+    void LambdaUsingStaticFieldIsConvertedToStatic() {
+        rewriteRun(
+            java("""                    
+                    import java.util.ArrayList;
+                    import java.util.List;
+                    import java.util.stream.Collectors;
+                    
+                    public class A {
+                    
+                        static List<Integer> a = new ArrayList<>();
+                    
+                        private void foo() {
+                            a = a.stream()
+                                .map(it -> it + 1)
+                                .collect(Collectors.toList());
+                        }
+                    }
+                    """,
+                """                    
+                    import java.util.ArrayList;
+                    import java.util.List;
+                    import java.util.stream.Collectors;
+                    
+                    public class A {
+                    
+                        static List<Integer> a = new ArrayList<>();
+                    
+                        private static void foo() {
+                            a = a.stream()
+                                    .map(it -> it + 1)
+                                    .collect(Collectors.toList());
+                        }
+                    }
+                    """                    
+            )
+        );
+    }     
+
+    @Test
+    void ReturnStatementUsingInstanceFieldDoesntChange() {
+        rewriteRun(
+            java("""                    
+                    import java.util.ArrayList;
+                    import java.util.List;
+                    import java.util.stream.Collectors;
+                    
+                    public class A {
+                    
+                        List<Integer> a = new ArrayList<>();
+                    
+                        private List<Integer> foo() {
+                            return this.a;
+                        }
+                    }
+                    """
+            )
+        );
+    }     
+
+    @Test
+    void ReturnStatementUsingStaticFieldDoesntIsConvertedToStatic() {
+        rewriteRun(
+            java("""                    
+                    import java.util.ArrayList;
+                    import java.util.List;
+                    import java.util.stream.Collectors;
+                    
+                    public class A {
+                    
+                        static List<Integer> a = new ArrayList<>();
+                    
+                        private List<Integer> foo() {
+                            return a;
+                        }
+                    }
+                    """,
+                    """                    
+                        import java.util.ArrayList;
+                        import java.util.List;
+                        import java.util.stream.Collectors;
+                        
+                        public class A {
+                        
+                            static List<Integer> a = new ArrayList<>();
+                        
+                            private static List<Integer> foo() {
+                                return a;
+                            }
+                        }
+                    """                    
+            )
+        );
+    }      
 }
