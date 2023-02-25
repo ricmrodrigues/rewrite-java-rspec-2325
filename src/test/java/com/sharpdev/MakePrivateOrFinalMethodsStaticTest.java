@@ -1076,7 +1076,7 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
     }     
 
     @Test
-    void ReturnStatementUsingInstanceFieldDoesntChange() {
+    void ReturnStatementUsingInstanceFieldIsUnchanged() {
         rewriteRun(
             java("""                    
                     import java.util.ArrayList;
@@ -1097,7 +1097,7 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
     }     
 
     @Test
-    void ReturnStatementUsingStaticFieldDoesntIsConvertedToStatic() {
+    void privateReturnStatementUsingStaticFieldIsConvertedToStatic() {
         rewriteRun(
             java("""                    
                     import java.util.ArrayList;
@@ -1130,4 +1130,25 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
             )
         );
     }      
+
+    @Test
+    void publicReturnStatementUsingStaticFieldIsUnchanged() {
+        rewriteRun(
+            java("""                    
+                    import java.util.ArrayList;
+                    import java.util.List;
+                    import java.util.stream.Collectors;
+                    
+                    public class A {
+                    
+                        static List<Integer> a = new ArrayList<>();
+                    
+                        public List<Integer> foo() {
+                            return a;
+                        }
+                    }
+                    """                   
+            )
+        );
+    }       
 }
