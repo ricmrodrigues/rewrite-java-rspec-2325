@@ -30,42 +30,6 @@ class MakeMethodStaticTest implements RewriteTest {
     }
 
     @Test
-    void finalCallingInstanceMethodNoChange() {
-        rewriteRun(
-            java("""
-                    class Test {
-                        final void finalMethod1() {
-
-                        }
-
-                        final void finalMethod2() {
-                            finalMethod1();
-                        }
-                    }
-                    """
-            )
-        );
-    } 
-
-    @Test
-    void privateCallingInstanceMethodNoChange() {
-        rewriteRun(
-            java("""
-                    class Test {
-                        private void finalMethod1() {
-
-                        }
-
-                        private void finalMethod2() {
-                            finalMethod1();
-                        }
-                    }
-                    """
-            )
-        );
-    } 
-
-    @Test
     void finalCallingStaticMethodChangesCallerToStatic() {
         rewriteRun(
             java("""

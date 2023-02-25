@@ -17,37 +17,20 @@ package com.sharpdev;
 
 import lombok.EqualsAndHashCode;
 import lombok.Value;
-
-import org.abego.treelayout.internal.util.java.util.ListUtil;
-import org.apache.commons.lang3.ArrayUtils;
 import org.openrewrite.*;
 import org.openrewrite.internal.ListUtils;
 import org.openrewrite.java.JavaIsoVisitor;
 import org.openrewrite.java.TreeVisitingPrinter;
+import org.openrewrite.java.tree.Flag;
 import org.openrewrite.java.tree.J;
-import org.openrewrite.java.tree.JavaType;
 import org.openrewrite.java.tree.Space;
-import org.openrewrite.java.tree.J.Assignment;
-import org.openrewrite.java.tree.J.AssignmentOperation;
-import org.openrewrite.java.tree.J.ClassDeclaration;
 import org.openrewrite.java.tree.J.FieldAccess;
-import org.openrewrite.java.tree.J.Identifier;
-import org.openrewrite.java.tree.J.MethodDeclaration;
 import org.openrewrite.java.tree.J.MethodInvocation;
-import org.openrewrite.java.tree.J.VariableDeclarations;
 import org.openrewrite.java.tree.JavaType.Variable;
 import org.openrewrite.marker.Markers;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Stream;
 
 @Incubating(since = "7.0.0")
 public class MakeMethodStatic extends Recipe {
@@ -80,23 +63,16 @@ public class MakeMethodStatic extends Recipe {
                     return md;
                 }
 
-                // if method is empty let's ignore, for now 
-                if (md.getBody().getStatements().isEmpty()) {
-                    return md;
-                }
+                // // if method is empty let's ignore, for now 
+                // if (md.getBody().getStatements().isEmpty()) {
+                //     return md;
+                // }
 
-                //System.out.println(TreeVisitingPrinter.printTree(getCursor()));
+                J.ClassDeclaration classDecl = getCursor().dropParentUntil(parent -> parent instanceof J.ClassDeclaration).getValue();
 
                 System.out.println(TreeVisitingPrinter.printTree(getCursor()));
 
-                AtomicBoolean foundInstanceAccess = FindInstanceUsagesWithinMethod.find(getCursor().getValue(), md.getBody());
-                //boolean noInstanceMethodAccess = false;
-                //  md.get.stream()
-                //     .filter(s -> s instanceof J.MethodInvocation)
-                //     .map(s -> (J.MethodInvocation) s)
-                //     .noneMatch(s -> FindReferencesToInstanceMethods.find(getCursor().getParentTreeCursor().getValue(), s).get());
-
-
+                AtomicBoolean foundInstanceAccess = FindInstanceUsagesWithinMethod.find(getCursor().getValue(), md.getBody(), classDecl);
                 if (!foundInstanceAccess.get()) {
                     md = autoFormat(
                             md.withModifiers(
@@ -114,14 +90,15 @@ public class MakeMethodStatic extends Recipe {
     private static class FindInstanceUsagesWithinMethod extends JavaIsoVisitor<AtomicBoolean> {
 
         J.Block block;
+        J.ClassDeclaration rootClass;
 
         /**
          * @param subtree   The subtree to search.
          * @param block  A {@link J.Block} to check for instance access.
          * @return An {@link AtomicBoolean} that is true if instance access has been found.
          */
-        static AtomicBoolean find(J subtree, J.Block block) {
-            return new FindInstanceUsagesWithinMethod(block)
+        static AtomicBoolean find(J subtree, J.Block block, J.ClassDeclaration rootClass) {
+            return new FindInstanceUsagesWithinMethod(block, rootClass)
                     .reduce(subtree, new AtomicBoolean());
         }
 
@@ -141,22 +118,16 @@ public class MakeMethodStatic extends Recipe {
             return fa;
         }
 
-        // @Override
-        // public J.Identifier visitIdentifier(J.Identifier identifier, AtomicBoolean hasInstanceAccess) {
-        //     J.Identifier i = super.visitIdentifier(identifier, hasInstanceAccess);
+        @Override
+        public J.Identifier visitIdentifier(J.Identifier identifier, AtomicBoolean hasInstanceAccess) {
+            J.Identifier i = super.visitIdentifier(identifier, hasInstanceAccess);
 
-        //     Variable fieldType = i.getFieldType();
-        //     if (fieldType != null && !fieldType.getOwner().toString().startsWith("java.lang.")) {
-        //         hasInstanceAccess.set(true);
-        //     }
-
-        //     if (i.getSimpleName().equals("something")) {
-        //         boolean field = isField(getCursor());
-        //         System.out.println(i.getSimpleName());
-        //     }
-
-        //     return i;
-        // }     
+            Variable fieldType = i.getFieldType();
+            if (fieldType != null && rootClass.getType().equals(i.getFieldType().getOwner()) && !fieldType.hasFlags(Flag.Static)) {                
+                hasInstanceAccess.set(true);
+            }
+            return i;
+        }     
 
         @Override
         public MethodInvocation visitMethodInvocation(MethodInvocation method, AtomicBoolean hasInstanceAccess) {
@@ -167,47 +138,11 @@ public class MakeMethodStatic extends Recipe {
 
             MethodInvocation mi = super.visitMethodInvocation(method, hasInstanceAccess);
 
-            //Class<?> c = Class.forName(args[0])
-            J.ClassDeclaration classDecl = getCursor().firstEnclosing(J.ClassDeclaration.class);
-
-            // for (JavaType.Method m : mi.getMethodType().getDeclaringType().getMethods())
-            // {
-            //     if (m.toString().equals(mi.getMethodType().toString())) {
-
-            //         m.
-
-            //         if (!Modifier.isStatic(m.getModifiers())) {
-            //             hasInstanceAccess.set(true);
-            //             break;
-            //         }                    
-            //     }
-            // }
-
-            // Method targetMethod = Arrays.asList().stream().findFirst(Method m -> m.equals(mi.getSimpleName()));
-            // if (!Modifier.isStatic(targetMethod.getModifiers())) {
-            //     hasInstanceAccess.set(true);
-            // }
-
-            // Arrays.asList().stream().findAny(m -> m)
-
-            // J.ClassDeclaration methodDeclaration = getCursor().dropParentUntil(parent -> parent instanceof J.ClassDeclaration).getValue();
-            // J.ClassDeclaration classDecl = getCursor().getParentOrThrow().firstEnclosing(J.ClassDeclaration.class);
-
-            // boolean isTargetAnInstanceMethod = Arrays.asList(classDecl.getClass().getMethods()).stream()
-            //     .anyMatch(m -> m.getName().equals(mi.getSimpleName()) && !Modifier.isStatic(m.getModifiers()));
-
-            // if (isTargetAnInstanceMethod) {
-            //     hasInstanceAccess.set(true);
-            // }
-            //Method m = java.lang.reflect.Method.class.getMethod(mi.getSimpleName(), mi.getMethodType().getDeclaringType().getClass());
-            //Optional<Method> foundMethod = Arrays.asList(mi.getMethodType().getDeclaringType().getClass().getMethods()).stream().filter(m -> m.getName() == mi.getSimpleName()).findFirst();
-
-            //JavaType methodType = mi.getName().getType();
-            //mi.getMethodType().getClass().getModifiers()
+            if (!mi.getMethodType().hasFlags(Flag.Static) && rootClass.getType().equals(mi.getMethodType().getDeclaringType())) {
+                hasInstanceAccess.set(true);
+            }
 
             return mi;
         }
-
-        // TODO: Implement visit methods
     }    
 }
