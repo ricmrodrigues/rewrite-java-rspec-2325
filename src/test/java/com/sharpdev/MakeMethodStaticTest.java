@@ -163,7 +163,7 @@ class MakeMethodStaticTest implements RewriteTest {
     }   
 
     @Test
-    void finalWithNonStaticFieldAssignmentIsUnchanged() {
+    void finalWithNonStaticFieldAssignmentIsUnchangedUsingThis() {
         rewriteRun(
             java("""                    
                     class Test {
@@ -179,7 +179,23 @@ class MakeMethodStaticTest implements RewriteTest {
     } 
 
     @Test
-    void privateWithNonStaticFieldAssignmentIsUnchanged() {
+    void finalWithNonStaticFieldAssignmentIsUnchangedNotUsingThis() {
+        rewriteRun(
+            java("""                    
+                    class Test {
+                        private String something;
+
+                        final void finalMethod() {
+                            something = "testing";
+                        }
+                    }
+                    """
+            )
+        );
+    } 
+
+    @Test
+    void privateWithNonStaticFieldAssignmentIsUnchangedUsingThis() {
         rewriteRun(
             java("""                    
                     class Test {
@@ -187,6 +203,22 @@ class MakeMethodStaticTest implements RewriteTest {
 
                         private void finalMethod() {
                             this.something = "testing";
+                        }
+                    }
+                    """
+            )
+        );
+    }     
+
+    @Test
+    void privateWithNonStaticFieldAssignmentIsUnchangedNotUsingThis() {
+        rewriteRun(
+            java("""                    
+                    class Test {
+                        private String something;
+
+                        private void finalMethod() {
+                            something = "testing";
                         }
                     }
                     """
@@ -245,7 +277,23 @@ class MakeMethodStaticTest implements RewriteTest {
     }     
 
     @Test
-    void finalInvokeSystemMethodWithInstanceFieldIsUnchanged() {
+    void finalInvokeExternalMethodWithInstanceFieldIsUnchangedUsingThis() {
+        rewriteRun(
+            java("""                    
+                    class Test {
+                        String something;
+
+                        final void finalMethod() {
+                            System.out.println(this.something);
+                        }
+                    }
+                    """
+            )
+        );
+    }  
+
+    @Test
+    void finalInvokeExternalMethodWithInstanceFieldIsUnchangedNotUsingThis() {
         rewriteRun(
             java("""                    
                     class Test {
@@ -261,7 +309,23 @@ class MakeMethodStaticTest implements RewriteTest {
     }  
 
     @Test
-    void privateInvokeSystemMethodWithInstanceFieldIsUnchanged() {
+    void privateInvokeExternalMethodWithInstanceFieldIsUnchangedUsingThis() {
+        rewriteRun(
+            java("""                    
+                    class Test {
+                        String something;
+
+                        private void finalMethod() {
+                            System.out.println(this.something);
+                        }
+                    }
+                    """
+            )
+        );
+    }         
+
+    @Test
+    void privateInvokeExternalMethodWithInstanceFieldIsUnchangedNotUsingThis() {
         rewriteRun(
             java("""                    
                     class Test {
@@ -274,7 +338,71 @@ class MakeMethodStaticTest implements RewriteTest {
                     """
             )
         );
-    }         
+    }  
+
+    @Test
+    void finalWithInstanceFieldAssignmentIsUnchangedUsingThis() {
+        rewriteRun(
+            java("""                    
+                    class Test {
+                        String something;
+
+                        final void finalMethod() {
+                            this.something = "testing";
+                        }
+                    }
+                    """
+            )
+        );
+    } 
+
+    @Test
+    void finalWithInstanceFieldAssignmentIsUnchangedNotUsingThis() {
+        rewriteRun(
+            java("""                    
+                    class Test {
+                        String something;
+
+                        final void finalMethod() {
+                            something = "testing";
+                        }
+                    }
+                    """
+            )
+        );
+    } 
+
+    @Test
+    void privateWithInstanceFieldAssignmentIsUnchangedUsingThis() {
+        rewriteRun(
+            java("""                    
+                    class Test {
+                        String something;
+
+                        private void finalMethod() {
+                            this.something = "testing";
+                        }
+                    }
+                    """
+            )
+        );
+    }  
+
+    @Test
+    void privateWithInstanceFieldAssignmentIsUnchangedNotUsingThis() {
+        rewriteRun(
+            java("""                    
+                    class Test {
+                        String something;
+
+                        private void finalMethod() {
+                            something = "testing";
+                        }
+                    }
+                    """
+            )
+        );
+    }     
 
     @Test
     void finalWithStaticFieldAssignmentIsConvertedToStatic() {
