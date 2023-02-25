@@ -30,6 +30,39 @@ class MakeMethodStaticTest implements RewriteTest {
     }
 
     @Test
+    void finalCallingStaticMethodChangesCallerToStaticOnNestedClass() {
+        rewriteRun(
+            java("""
+                    class Outer {
+                        class Test {
+                            static void finalMethod1() {
+
+                            }
+
+                            final void finalMethod2() {
+                                finalMethod1();
+                            }
+                        }
+                    }
+                    """,
+                """
+                    class Outer {
+                        class Test {
+                            static void finalMethod1() {
+
+                            }
+
+                            final static void finalMethod2() {
+                                finalMethod1();
+                            }
+                        }
+                    }
+                    """                    
+            )
+        );
+    } 
+
+    @Test
     void finalCallingStaticMethodChangesCallerToStatic() {
         rewriteRun(
             java("""
