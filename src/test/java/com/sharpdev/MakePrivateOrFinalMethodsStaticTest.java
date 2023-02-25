@@ -203,7 +203,7 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
         rewriteRun(
             java("""
                     class Test {
-                        private void finalMethod() {
+                        public void finalMethod() {
 
                         }
                     }
