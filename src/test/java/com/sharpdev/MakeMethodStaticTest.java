@@ -30,25 +30,98 @@ class MakeMethodStaticTest implements RewriteTest {
     }
 
     @Test
-    void emptyFinalMethodIsConvertedToStatic() {
+    void finalCallingInstanceMethodNoChange() {
         rewriteRun(
             java("""
                     class Test {
-                        final void finalMethod() {
+                        final void finalMethod1() {
 
                         }
-                    }
-                    """,
-                """
-                    class Test {
-                        final static void finalMethod() {
 
+                        final void finalMethod2() {
+                            finalMethod1();
                         }
                     }
                     """
             )
         );
     } 
+
+    @Test
+    void privateCallingInstanceMethodNoChange() {
+        rewriteRun(
+            java("""
+                    class Test {
+                        private void finalMethod1() {
+
+                        }
+
+                        private void finalMethod2() {
+                            finalMethod1();
+                        }
+                    }
+                    """
+            )
+        );
+    } 
+
+    @Test
+    void finalCallingStaticMethodChangesCallerToStatic() {
+        rewriteRun(
+            java("""
+                    class Test {
+                        static void finalMethod1() {
+
+                        }
+
+                        final void finalMethod2() {
+                            finalMethod1();
+                        }
+                    }
+                    """,
+                """
+                    class Test {
+                        static void finalMethod1() {
+
+                        }
+
+                        final static void finalMethod2() {
+                            finalMethod1();
+                        }
+                    }
+                    """                    
+            )
+        );
+    } 
+
+    @Test
+    void privateCallingStaticMethodChangesCallerToStatic() {
+        rewriteRun(
+            java("""
+                    class Test {
+                        static void finalMethod1() {
+
+                        }
+
+                        private void finalMethod2() {
+                            finalMethod1();
+                        }
+                    }
+                    """,
+                """
+                    class Test {
+                        static void finalMethod1() {
+
+                        }
+
+                        private static void finalMethod2() {
+                            finalMethod1();
+                        }
+                    }
+                    """                    
+            )
+        );
+    }     
 
     @Test
     void emptyPrivateMethodIsConvertedToStatic() {
@@ -154,7 +227,7 @@ class MakeMethodStaticTest implements RewriteTest {
     }     
 
     @Test
-    void finalWithNonStaticFieldAccessIsUnchanged() {
+    void finalInvokeSystemMethodWithInstanceFieldIsUnchanged() {
         rewriteRun(
             java("""                    
                     class Test {
@@ -170,7 +243,7 @@ class MakeMethodStaticTest implements RewriteTest {
     }  
 
     @Test
-    void privateWithNonStaticFieldAccessIsUnchanged() {
+    void privateInvokeSystemMethodWithInstanceFieldIsUnchanged() {
         rewriteRun(
             java("""                    
                     class Test {
