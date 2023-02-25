@@ -1151,4 +1151,75 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
             )
         );
     }       
+
+    @Test
+    void writeObjectSerializableIsIgnored() {
+        rewriteRun(
+            java("""                    
+                    import java.io.IOException;
+                    import java.io.ObjectOutputStream;
+                    import java.io.Serializable;
+                    
+                    public class MyClass implements Serializable {
+                        
+                        private static final long serialVersionUID = 123456789L;
+                        
+                        private String myTransientField;
+                    
+                        private void writeObject(ObjectOutputStream out) throws IOException {
+                            out.defaultWriteObject();
+                            out.writeObject(myTransientField);
+                        }
+                    }                
+                    """                   
+            )
+        );
+    } 
+
+    @Test
+    void readObjectSerializableIsIgnored() {
+        rewriteRun(
+            java("""                    
+                    import java.io.IOException;
+                    import java.io.ObjectInputStream;
+                    import java.io.Serializable;
+                    
+                    public class MyClass implements Serializable {
+                        
+                        private static final long serialVersionUID = 123456789L;
+                        
+                        private String myTransientField;
+                    
+                        private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+                            in.defaultReadObject();
+                            myTransientField = (String) in.readObject();
+                        }
+                    }                
+                    """                   
+            )
+        );
+    }     
+
+    @Test
+    void readObjectNoDataSerializableIsIgnored() {
+        rewriteRun(
+            java("""                    
+                    import java.io.IOException;
+                    import java.io.ObjectInputStream;
+                    import java.io.Serializable;
+                    
+                    public class MyClass implements Serializable {
+                        
+                        private static final long serialVersionUID = 123456789L;
+                        
+                        private Integer myField;
+                    
+                        private void readObjectNoData() throws IOException, ClassNotFoundException {
+                            myField = 0;
+                        }                    
+                    }                
+                    """                   
+            )
+        );
+    }     
 }
