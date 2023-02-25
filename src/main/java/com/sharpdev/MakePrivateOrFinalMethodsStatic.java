@@ -58,8 +58,8 @@ public class MakePrivateOrFinalMethodsStatic extends Recipe {
                     return md;
                 }
 
-                // if this is already static, ignore
-                if (md.hasModifier(J.Modifier.Type.Static)) {
+                // if this is already static or is a constructor, ignore
+                if (md.hasModifier(J.Modifier.Type.Static) || md.isConstructor()) {
                     return md;
                 }
 
