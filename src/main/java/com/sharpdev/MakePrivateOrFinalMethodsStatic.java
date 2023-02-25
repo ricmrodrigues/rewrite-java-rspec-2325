@@ -88,6 +88,7 @@ public class MakePrivateOrFinalMethodsStatic extends Recipe {
         /**
          * @param subtree   The subtree to search.
          * @param block  A {@link J.Block} to check for instance access.
+         * @param rootClass  A {@link J.ClassDeclaration} root class to check if visited items belong.
          * @return An {@link AtomicBoolean} that is true if instance access has been found.
          */
         static AtomicBoolean find(J subtree, J.Block block, J.ClassDeclaration rootClass) {
