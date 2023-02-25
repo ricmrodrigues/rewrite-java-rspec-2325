@@ -109,6 +109,27 @@ class MakeMethodStaticTest implements RewriteTest {
     }      
 
     @Test
+    void emptyFinalMethodIsConvertedToStatic() {
+        rewriteRun(
+            java("""
+                    class Test {
+                        final void finalMethod() {
+
+                        }
+                    }
+                    """,
+                """
+                    class Test {
+                        final static void finalMethod() {
+
+                        }
+                    }
+                    """
+            )
+        );
+    }   
+
+    @Test
     void finalWithNonStaticFieldAssignmentIsUnchanged() {
         rewriteRun(
             java("""                    
