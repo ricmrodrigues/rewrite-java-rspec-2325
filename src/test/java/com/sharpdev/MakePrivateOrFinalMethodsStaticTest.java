@@ -1,21 +1,8 @@
-/*
- * Copyright 2020 the original author or authors.
- * <p>
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * <p>
- * https://www.apache.org/licenses/LICENSE-2.0
- * <p>
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package com.sharpdev;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.openrewrite.test.RecipeSpec;
 import org.openrewrite.test.RewriteTest;
 
@@ -29,1081 +16,546 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
         spec.recipe(new MakePrivateOrFinalMethodsStatic());
     }
 
-    @Test
-    void finalCallingStaticMethodChangesCallerToStaticOnNestedClass() {
+    @ParameterizedTest
+    @ValueSource(strings = { "final", "private", "private final" })
+    void callingStaticMethodChangesCallerToStaticOnNestedClass(String modifier) {
         rewriteRun(
-            java("""
+            java(String.format("""
                     class Outer {
                         class Test {
                             static void finalMethod1() {
 
                             }
 
-                            final void finalMethod2() {
+                            %s void finalMethod2() {
                                 finalMethod1();
                             }
                         }
                     }
-                    """,
-                """
+                    """, modifier),
+                String.format("""
                     class Outer {
                         class Test {
                             static void finalMethod1() {
 
                             }
 
-                            final static void finalMethod2() {
+                            %s static void finalMethod2() {
                                 finalMethod1();
                             }
                         }
                     }
-                    """                    
+                    """, modifier)           
             )
         );
     } 
 
-    @Test
-    void finalCallingStaticMethodChangesCallerToStatic() {
+    @ParameterizedTest
+    @ValueSource(strings = { "public", "protected", "" })
+    void callingStaticMethodIsUnchangedOnNestedClassIfDoesNotMatchSpec(String modifier) {
         rewriteRun(
-            java("""
-                    class Test {
-                        static void finalMethod1() {
+            java(String.format("""
+                    class Outer {
+                        class Test {
+                            static void finalMethod1() {
 
-                        }
+                            }
 
-                        final void finalMethod2() {
-                            finalMethod1();
-                        }
-                    }
-                    """,
-                """
-                    class Test {
-                        static void finalMethod1() {
-
-                        }
-
-                        final static void finalMethod2() {
-                            finalMethod1();
+                            %s void finalMethod2() {
+                                finalMethod1();
+                            }
                         }
                     }
-                    """                    
+                    """, modifier)           
             )
         );
     } 
 
-    @Test
-    void privateCallingStaticMethodChangesCallerToStatic() {
+    @ParameterizedTest
+    @ValueSource(strings = { "public", "protected", "" })
+    void callingStaticMethodIsUnchangedIfDoesNotMatchSpec(String modifier) {
         rewriteRun(
-            java("""
+            java(String.format("""
                     class Test {
                         static void finalMethod1() {
 
                         }
 
-                        private void finalMethod2() {
+                        %s void finalMethod2() {
                             finalMethod1();
                         }
                     }
-                    """,
-                """
-                    class Test {
-                        static void finalMethod1() {
-
-                        }
-
-                        private static void finalMethod2() {
-                            finalMethod1();
-                        }
-                    }
-                    """                    
-            )
-        );
-    }     
-
-    @Test
-    void publicCallingStaticMethodDoesNotChange() {
-        rewriteRun(
-            java("""
-                    class Test {
-                        static void finalMethod1() {
-
-                        }
-
-                        public void finalMethod2() {
-                            finalMethod1();
-                        }
-                    }
-                    """                   
-            )
-        );
-    } 
-
-    @Test
-    void protectedCallingStaticMethodDoesNotChange() {
-        rewriteRun(
-            java("""
-                    class Test {
-                        static void finalMethod1() {
-
-                        }
-
-                        protected void finalMethod2() {
-                            finalMethod1();
-                        }
-                    }
-                    """                   
-            )
-        );
-    } 
-
-    @Test
-    void emptyPrivateMethodIsConvertedToStatic() {
-        rewriteRun(
-            java("""
-                    class Test {
-                        private void finalMethod() {
-
-                        }
-                    }
-                    """,
-                """
-                    class Test {
-                        private static void finalMethod() {
-
-                        }
-                    }
-                    """
-            )
-        );
-    } 
-
-    @Test
-    void emptyFinalMethodIsConvertedToStatic() {
-        rewriteRun(
-            java("""
-                    class Test {
-                        final void finalMethod() {
-
-                        }
-                    }
-                    """,
-                """
-                    class Test {
-                        final static void finalMethod() {
-
-                        }
-                    }
-                    """
+                    """, modifier)
             )
         );
     }   
 
-    @Test
-    void emptyPublicMethodIsNotChanged() {
+    @ParameterizedTest
+    @ValueSource(strings = { "public", "protected", "" })
+    void callingStaticMethodIsUnchanged(String modifier) {
         rewriteRun(
-            java("""
+            java(String.format("""
                     class Test {
-                        public void finalMethod() {
+                        static void finalMethod1() {
+
+                        }
+
+                        %s void finalMethod2() {
+                            finalMethod1();
+                        }
+                    }
+                    """, modifier)
+            )
+        );
+    } 
+
+    @ParameterizedTest
+    @ValueSource(strings = { "final", "private", "private final" })
+    void emptyMethodIsConvertedToStaticIfMatchesSpec(String modifier) {
+        rewriteRun(
+            java(String.format("""
+                    class Test {
+                        %s void finalMethod() {
 
                         }
                     }
-                    """
-            )
-        );
-    }          
-
-    @Test
-    void emptyProtectedMethodIsNotChanged() {
-        rewriteRun(
-            java("""
+                    """, modifier),
+                String.format("""
                     class Test {
-                        protected void finalMethod() {
+                        %s static void finalMethod() {
 
                         }
                     }
-                    """
+                    """, modifier)
             )
         );
-    }    
+    }   
 
-    @Test
-    void localVariableNotUsingInstanceFieldIsConvertedToStatic() {
+    @ParameterizedTest
+    @ValueSource(strings = { "public", "protected", "" })
+    void emptyMethodIsUnchangedToStaticIfDoesNotMatchSpec(String modifier) {
         rewriteRun(
-            java("""                    
+            java(String.format("""
+                    class Test {
+                        %s void finalMethod() {
+
+                        }
+                    }
+                    """, modifier)
+            )
+        );
+    }   
+
+    @ParameterizedTest
+    @ValueSource(strings = { "final", "private", "private final" })
+    void methodOnlyUsingLocalVariableIsConvertedToStaticIfMatchesSpec(String modifier) {
+        rewriteRun(
+            java(String.format("""                    
                     class Test {
                         private String something;
 
-                        private void finalMethod() {
+                        %s void finalMethod() {
                             boolean bla = false;
                         }
                     }
-                    """,
-                    """                    
+                    """, modifier),
+                    String.format("""                    
                     class Test {
                         private String something;
 
-                        private static void finalMethod() {
+                        %s static void finalMethod() {
                             boolean bla = false;
                         }
                     }
-                    """                    
+                    """, modifier)
             )
         );
     } 
 
-    @Test
-    void publicWithNonStaticFieldAssignmentIsUnchangedUsingThis() {
+    @ParameterizedTest
+    @ValueSource(strings = { "public", "protected", "" })
+    void methodOnlyUsingLocalVariableIsUnchangedIfDoesNotMatchSpec(String modifier) {
         rewriteRun(
-            java("""                    
+            java(String.format("""                    
                     class Test {
                         private String something;
 
-                        public void finalMethod() {
+                        %s void finalMethod() {
+                            boolean bla = false;
+                        }
+                    }
+                    """, modifier)
+            )
+        );
+    } 
+
+    @ParameterizedTest
+    @ValueSource(strings = { "final", "private", "private final", "public", "protected", "" })
+    void methodWithNonStaticFieldAssignmentIsUnchangedUsingThis(String modifier) {
+        rewriteRun(
+            java(String.format("""                    
+                    class Test {
+                        private String something;
+
+                        %s void finalMethod() {
                             this.something = "testing";
                         }
                     }
-                    """
+                    """, modifier)
             )
         );
     } 
 
-    @Test
-    void publicWithNonStaticFieldAssignmentIsUnchangedNotUsingThis() {
+    @ParameterizedTest
+    @ValueSource(strings = { "final", "private", "private final", "public", "protected", "" })
+    void methodWithNonStaticFieldAssignmentIsUnchangedNotUsingThis(String modifier) {
         rewriteRun(
-            java("""                    
+            java(String.format("""                    
                     class Test {
                         private String something;
 
-                        public void finalMethod() {
+                        %s void finalMethod() {
                             something = "testing";
                         }
                     }
-                    """
-            )
-        );
-    } 
-
-    @Test
-    void finalWithNonStaticFieldAssignmentIsUnchangedUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        private String something;
-
-                        final void finalMethod() {
-                            this.something = "testing";
-                        }
-                    }
-                    """
-            )
-        );
-    } 
-
-    @Test
-    void finalWithNonStaticFieldAssignmentIsUnchangedNotUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        private String something;
-
-                        final void finalMethod() {
-                            something = "testing";
-                        }
-                    }
-                    """
-            )
-        );
-    } 
-
-    @Test
-    void privateWithNonStaticFieldAssignmentIsUnchangedUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        private String something;
-
-                        private void finalMethod() {
-                            this.something = "testing";
-                        }
-                    }
-                    """
-            )
-        );
-    }     
-
-    @Test
-    void privateWithNonStaticFieldAssignmentIsUnchangedNotUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        private String something;
-
-                        private void finalMethod() {
-                            something = "testing";
-                        }
-                    }
-                    """
-            )
-        );
-    }     
-
-    @Test
-    void protectedWithNonStaticFieldAssignmentIsUnchangedUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        private String something;
-
-                        protected void finalMethod() {
-                            this.something = "testing";
-                        }
-                    }
-                    """
-            )
-        );
-    }     
-
-    @Test
-    void protectedWithNonStaticFieldAssignmentIsUnchangedNotUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        private String something;
-
-                        protected void finalMethod() {
-                            something = "testing";
-                        }
-                    }
-                    """
-            )
-        );
-    }     
-
-    @Test
-    void finalWithStaticFieldAccessIsConvertedToStatic() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        static String something;
-
-                        final void finalMethod() {
-                            System.out.println(something);
-                        }
-                    }
-                    """,
-                """
-                    class Test {
-                        static String something;
-
-                        final static void finalMethod() {
-                            System.out.println(something);
-                        }
-                    }
-                    """
-            )
-        );
-    } 
-
-    @Test
-    void privateWithStaticFieldAccessIsConvertedToStatic() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        static String something;
-
-                        private void finalMethod() {
-                            System.out.println(something);
-                        }
-                    }
-                    """,
-                """
-                    class Test {
-                        static String something;
-
-                        private static void finalMethod() {
-                            System.out.println(something);
-                        }
-                    }
-                    """
-            )
-        );
-    }     
-
-    @Test
-    void publicWithStaticFieldAccessIsNotChanged() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        static String something;
-
-                        public void finalMethod() {
-                            System.out.println(something);
-                        }
-                    }
-                    """
-            )
-        );
-    } 
-
-    @Test
-    void protectedWithStaticFieldAccessIsNotChanged() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        static String something;
-
-                        protected void finalMethod() {
-                            System.out.println(something);
-                        }
-                    }
-                    """
-            )
-        );
-    } 
-
-    @Test
-    void finalInvokeExternalMethodWithInstanceFieldIsUnchangedUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        String something;
-
-                        final void finalMethod() {
-                            System.out.println(this.something);
-                        }
-                    }
-                    """
-            )
-        );
-    }  
-
-    @Test
-    void finalInvokeExternalMethodWithInstanceFieldIsUnchangedNotUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        String something;
-
-                        final void finalMethod() {
-                            System.out.println(something);
-                        }
-                    }
-                    """
-            )
-        );
-    }  
-
-    @Test
-    void privateInvokeExternalMethodWithInstanceFieldIsUnchangedUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        String something;
-
-                        private void finalMethod() {
-                            System.out.println(this.something);
-                        }
-                    }
-                    """
-            )
-        );
-    }         
-
-    @Test
-    void privateInvokeExternalMethodWithInstanceFieldIsUnchangedNotUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        String something;
-
-                        private void finalMethod() {
-                            System.out.println(something);
-                        }
-                    }
-                    """
-            )
-        );
-    }  
-
-    @Test
-    void publicInvokeExternalMethodWithInstanceFieldIsUnchangedUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        String something;
-
-                        public void finalMethod() {
-                            System.out.println(this.something);
-                        }
-                    }
-                    """
-            )
-        );
-    }  
-
-    @Test
-    void publicInvokeExternalMethodWithInstanceFieldIsUnchangedNotUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        String something;
-
-                        public void finalMethod() {
-                            System.out.println(something);
-                        }
-                    }
-                    """
-            )
-        );
-    }  
-
-    @Test
-    void protectedInvokeExternalMethodWithInstanceFieldIsUnchangedUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        String something;
-
-                        protected void finalMethod() {
-                            System.out.println(this.something);
-                        }
-                    }
-                    """
-            )
-        );
-    }  
-
-    @Test
-    void protectedInvokeExternalMethodWithInstanceFieldIsUnchangedNotUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        String something;
-
-                        protected void finalMethod() {
-                            System.out.println(something);
-                        }
-                    }
-                    """
-            )
-        );
-    }  
-
-    @Test
-    void finalWithInstanceFieldAssignmentIsUnchangedUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        String something;
-
-                        final void finalMethod() {
-                            this.something = "testing";
-                        }
-                    }
-                    """
-            )
-        );
-    } 
-
-    @Test
-    void finalWithInstanceFieldAssignmentIsUnchangedNotUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        String something;
-
-                        final void finalMethod() {
-                            something = "testing";
-                        }
-                    }
-                    """
-            )
-        );
-    } 
-
-    @Test
-    void privateWithInstanceFieldAssignmentIsUnchangedUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        String something;
-
-                        private void finalMethod() {
-                            this.something = "testing";
-                        }
-                    }
-                    """
-            )
-        );
-    }  
-
-    @Test
-    void privateWithInstanceFieldAssignmentIsUnchangedNotUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        String something;
-
-                        private void finalMethod() {
-                            something = "testing";
-                        }
-                    }
-                    """
-            )
-        );
-    }     
-
-    @Test
-    void publicWithInstanceFieldAssignmentIsUnchangedUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        String something;
-
-                        public void finalMethod() {
-                            this.something = "testing";
-                        }
-                    }
-                    """
-            )
-        );
-    }  
-
-    @Test
-    void publicWithInstanceFieldAssignmentIsUnchangedNotUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        String something;
-
-                        public void finalMethod() {
-                            something = "testing";
-                        }
-                    }
-                    """
-            )
-        );
-    } 
-
-    @Test
-    void finalWithStaticFieldAssignmentIsConvertedToStatic() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        static String something;
-
-                        final void finalMethod() {
-                            something = "testing";
-                        }
-                    }
-                    """,
-                """
-                    class Test {
-                        static String something;
-
-                        final static void finalMethod() {
-                            something = "testing";
-                        }
-                    }
-                    """
-            )
-        );
-    } 
-
-    @Test
-    void privateWithStaticFieldAssignmentIsConvertedToStatic() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        static String something;
-
-                        private void finalMethod() {
-                            something = "testing";
-                        }
-                    }
-                    """,
-                """
-                    class Test {
-                        static String something;
-
-                        private static void finalMethod() {
-                            something = "testing";
-                        }
-                    }
-                    """
-            )
-        );
-    }  
-
-    @Test
-    void publicWithStaticFieldAssignmentIsUnchanged() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        static String something;
-
-                        public void finalMethod() {
-                            something = "testing";
-                        }
-                    }
-                    """
-            )
-        );
-    }  
-
-    @Test
-    void protectedWithStaticFieldAssignmentIsUnchanged() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        static String something;
-
-                        protected void finalMethod() {
-                            something = "testing";
-                        }
-                    }
-                    """
-            )
-        );
-    }  
-
-    @Test
-    void privateWithInstanceFieldAssignmentOperationIsUnchangedNotUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        Integer something = 0;
-
-                        private void finalMethod() {
-                            something += 1;
-                        }
-                    }
-                    """
-            )
-        );
-    }  
-    
-    @Test
-    void privateWithInstanceFieldAssignmentOperationIsUnchangedUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        Integer something = 0;
-
-                        private void finalMethod() {
-                            this.something += 1;
-                        }
-                    }
-                    """
-            )
-        );
-    }            
-    
-    @Test
-    void finalWithInstanceFieldAssignmentOperationIsUnchangedNotUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        Integer something = 0;
-
-                        final void finalMethod() {
-                            something += 1;
-                        }
-                    }
-                    """
-            )
-        );
-    }  
-
-    @Test
-    void finalWithInstanceFieldAssignmentOperationIsUnchangedUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        Integer something = 0;
-
-                        final void finalMethod() {
-                            this.something += 1;
-                        }
-                    }
-                    """
-            )
-        );
-    }     
-    @Test
-    void publicWithInstanceFieldAssignmentOperationIsUnchangedUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        Integer something = 0;
-
-                        public void finalMethod() {
-                            this.something += 1;
-                        }
-                    }
-                    """
-            )
-        );
-    }     
-    
-    @Test
-    void publicWithInstanceFieldAssignmentOperationIsUnchangedNotUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        Integer something = 0;
-
-                        public void finalMethod() {
-                            something += 1;
-                        }
-                    }
-                    """
-            )
-        );
-    }  
-        
-    @Test
-    void protectedWithInstanceFieldAssignmentOperationIsUnchangedUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        Integer something = 0;
-
-                        protected void finalMethod() {
-                            this.something += 1;
-                        }
-                    }
-                    """
-            )
-        );
-    }     
-    
-    @Test
-    void protectedWithInstanceFieldAssignmentOperationIsUnchangedNotUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        Integer something = 0;
-
-                        protected void finalMethod() {
-                            something += 1;
-                        }
-                    }
-                    """
-            )
-        );
-    }  
-
-    @Test
-    void finalWithInstanceFieldUnaryIsUnchangedUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        Integer something = 0;
-
-                        final void finalMethod() {
-                            this.something++;
-                        }
-                    }
-                    """
-            )
-        );
-    }  
-    
-    @Test
-    void finalWithInstanceFieldUnaryIsUnchangedNotUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        Integer something = 0;
-
-                        final void finalMethod() {
-                            something++;
-                        }
-                    }
-                    """
-            )
-        );
-    }             
-    
-    @Test
-    void privateWithInstanceFieldUnaryIsUnchangedUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        Integer something = 0;
-
-                        private void finalMethod() {
-                            this.something++;
-                        }
-                    }
-                    """
-            )
-        );
-    }  
-    
-    @Test
-    void privateWithInstanceFieldUnaryIsUnchangedNotUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        Integer something = 0;
-
-                        private void finalMethod() {
-                            something++;
-                        }
-                    }
-                    """
-            )
-        );
-    }   
-        
-    @Test
-    void publicWithInstanceFieldUnaryIsUnchangedUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        Integer something = 0;
-
-                        public void finalMethod() {
-                            this.something++;
-                        }
-                    }
-                    """
-            )
-        );
-    }  
-    
-    @Test
-    void publicWithInstanceFieldUnaryIsUnchangedNotUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        Integer something = 0;
-
-                        public void finalMethod() {
-                            something++;
-                        }
-                    }
-                    """
-            )
-        );
-    }   
-        
-    @Test
-    void protectedWithInstanceFieldUnaryIsUnchangedUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        Integer something = 0;
-
-                        protected void finalMethod() {
-                            this.something++;
-                        }
-                    }
-                    """
-            )
-        );
-    }  
-    
-    @Test
-    void protectedWithInstanceFieldUnaryIsUnchangedNotUsingThis() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        Integer something = 0;
-
-                        protected void finalMethod() {
-                            something++;
-                        }
-                    }
-                    """
-            )
-        );
-    }   
-
-    @Test
-    void constructorIsNeverChanged() {
-        rewriteRun(
-            java("""                    
-                    class Test {
-                        Integer something = 0;
-
-                        private Test() {
-                            something++;
-                        }
-                    }
-                    """
+                    """, modifier)
             )
         );
     }       
 
-    @Test
-    void LambdaUsingInstanceFieldDoesntChange() {
+    @ParameterizedTest
+    @ValueSource(strings = { "final", "private", "private final" })
+    void methodWithStaticFieldAccessIsConvertedToStaticIfMatchesSpec(String modifier) {
         rewriteRun(
-            java("""                    
-                    import java.util.ArrayList;
-                    import java.util.List;
-                    import java.util.stream.Collectors;
-                    
-                    public class A {
-                    
-                        List<Integer> a = new ArrayList<>();
-                    
-                        private void foo() {
-                            this.a = this.a.stream()
-                                    .map(it -> it + 1)
-                                    .collect(Collectors.toList());
+            java(String.format("""                    
+                    class Test {
+                        static String something;
+
+                        %s void finalMethod() {
+                            System.out.println(something);
                         }
                     }
-                    """
+                    """, modifier),
+                String.format("""
+                    class Test {
+                        static String something;
+
+                        %s static void finalMethod() {
+                            System.out.println(something);
+                        }
+                    }
+                    """, modifier)
+            )
+        );
+    }     
+
+    @ParameterizedTest
+    @ValueSource(strings = { "public", "protected", "" })
+    void methodWithStaticFieldAccessIsNotChangedIfDoesNotMatchSpec(String modifier) {
+        rewriteRun(
+            java(String.format("""                    
+                    class Test {
+                        static String something;
+
+                        %s void finalMethod() {
+                            System.out.println(something);
+                        }
+                    }
+                    """, modifier)
             )
         );
     } 
 
-    @Test
-    void LambdaUsingStaticFieldIsConvertedToStatic() {
+    @ParameterizedTest
+    @ValueSource(strings = { "final", "private", "private final", "public", "protected", "" })
+    void invokeExternalMethodWithInstanceFieldIsUnchangedUsingThis(String modifier) {
         rewriteRun(
-            java("""                    
-                    import java.util.ArrayList;
-                    import java.util.List;
-                    import java.util.stream.Collectors;
-                    
-                    public class A {
-                    
-                        static List<Integer> a = new ArrayList<>();
-                    
-                        private void foo() {
-                            a = a.stream()
-                                .map(it -> it + 1)
-                                .collect(Collectors.toList());
+            java(String.format("""                    
+                    class Test {
+                        String something;
+
+                        %s void finalMethod() {
+                            System.out.println(this.something);
                         }
                     }
-                    """,
-                """                    
-                    import java.util.ArrayList;
-                    import java.util.List;
-                    import java.util.stream.Collectors;
-                    
-                    public class A {
-                    
-                        static List<Integer> a = new ArrayList<>();
-                    
-                        private static void foo() {
-                            a = a.stream()
-                                    .map(it -> it + 1)
-                                    .collect(Collectors.toList());
-                        }
-                    }
-                    """                    
+                    """, modifier)
             )
         );
     }     
 
-    @Test
-    void ReturnStatementUsingInstanceFieldIsUnchanged() {
+    @ParameterizedTest
+    @ValueSource(strings = { "final", "private", "private final", "public", "protected", "" })
+    void invokeExternalMethodWithInstanceFieldIsUnchangedNotUsingThis(String modifier) {
         rewriteRun(
-            java("""                    
+            java(String.format("""                    
+                    class Test {
+                        String something;
+
+                        %s void finalMethod() {
+                            System.out.println(something);
+                        }
+                    }
+                    """, modifier)
+            )
+        );
+    }  
+
+    @ParameterizedTest
+    @ValueSource(strings = { "final", "private", "private final", "public", "protected", "" })
+    void methodWithInstanceFieldAssignmentIsUnchangedUsingThis(String modifier) {
+        rewriteRun(
+            java(String.format("""                    
+                    class Test {
+                        String something;
+
+                        %s void finalMethod() {
+                            this.something = "testing";
+                        }
+                    }
+                    """, modifier)
+            )
+        );
+    } 
+
+    @ParameterizedTest
+    @ValueSource(strings = { "final", "private", "private final", "public", "protected", "" })
+    void methodWithInstanceFieldAssignmentIsUnchangedNotUsingThis(String modifier) {
+        rewriteRun(
+            java(String.format("""                    
+                    class Test {
+                        String something;
+
+                        %s void finalMethod() {
+                            something = "testing";
+                        }
+                    }
+                    """, modifier)
+            )
+        );
+    }   
+
+    @ParameterizedTest
+    @ValueSource(strings = { "final", "private", "private final" })
+    void methodWithStaticFieldAssignmentIsConvertedToStaticIfMatchesSpec(String modifier) {
+        rewriteRun(
+            java(String.format("""                    
+                    class Test {
+                        static String something;
+
+                        %s void finalMethod() {
+                            something = "testing";
+                        }
+                    }
+                    """, modifier),
+                String.format("""
+                    class Test {
+                        static String something;
+
+                        %s static void finalMethod() {
+                            something = "testing";
+                        }
+                    }
+                    """, modifier)
+            )
+        );
+    } 
+
+
+    @ParameterizedTest
+    @ValueSource(strings = { "public", "protected", "" })
+    void methodWithStaticFieldAssignmentIsUnchangedIfDoesNotMatchSpec(String modifier) {
+        rewriteRun(
+            java(String.format("""                    
+                    class Test {
+                        static String something;
+
+                        %s void finalMethod() {
+                            something = "testing";
+                        }
+                    }
+                    """, modifier)
+            )
+        );
+    }       
+
+    @ParameterizedTest
+    @ValueSource(strings = { "final", "private", "private final", "public", "protected", "" })
+    void methodWithInstanceFieldAssignmentOperationIsUnchangedNotUsingThis(String modifier) {
+        rewriteRun(
+            java(String.format("""                    
+                    class Test {
+                        Integer something = 0;
+
+                        %s void finalMethod() {
+                            something += 1;
+                        }
+                    }
+                    """, modifier)
+            )
+        );
+    }  
+    
+    @ParameterizedTest
+    @ValueSource(strings = { "final", "private", "private final", "public", "protected", "" })
+    void methodWithInstanceFieldAssignmentOperationIsUnchangedUsingThis(String modifier) {
+        rewriteRun(
+            java(String.format("""
+                    class Test {
+                        Integer something = 0;
+
+                        %s void finalMethod() {
+                            this.something += 1;
+                        }
+                    }
+                    """, modifier)
+            )
+        );
+    }             
+
+    @ParameterizedTest
+    @ValueSource(strings = { "final", "private", "private final", "public", "protected", "" })
+    void methodWithInstanceFieldUnaryIsUnchangedNotUsingThis(String modifier) {
+        rewriteRun(
+            java(String.format("""                    
+                    class Test {
+                        Integer something = 0;
+
+                        %s void finalMethod() {
+                            something++;
+                        }
+                    }
+                    """, modifier)
+            )
+        );
+    }  
+    
+    @ParameterizedTest
+    @ValueSource(strings = { "final", "private", "private final", "public", "protected", "" })
+    void methodWithInstanceFieldUnaryIsUnchangedUsingThis(String modifier) {
+        rewriteRun(
+            java(String.format("""
+                    class Test {
+                        Integer something = 0;
+
+                        %s void finalMethod() {
+                            this.something++;
+                        }
+                    }
+                    """, modifier)
+            )
+        );
+    }      
+
+    @ParameterizedTest
+    @ValueSource(strings = { "private", "public", "protected", "" })
+    void constructorIsNeverChanged(String modifier) {
+        rewriteRun(
+            java(String.format("""                    
+                    class Test {
+                        Integer something = 0;
+
+                        %s Test() {
+                            something++;
+                        }
+                    }
+                    """, modifier)
+            )
+        );
+    }       
+
+    @ParameterizedTest
+    @ValueSource(strings = { "final", "private", "private final", "public", "protected", "" })
+    void LambdaUsingInstanceFieldDoesntChange(String modifier) {
+        rewriteRun(
+            java(String.format("""                    
+                    import java.util.ArrayList;
+                    import java.util.List;
+                    import java.util.stream.Collectors;
+                    
+                    public class A {
+                        static List<Integer> a = new ArrayList<>();
+                        Integer something = 0;
+                    
+                        %s void foo() {
+                            a = a.stream()
+                                .map(it -> it + something)
+                                .collect(Collectors.toList());
+                        }
+                    }
+                    """, modifier)
+            )
+        );
+    } 
+
+    @ParameterizedTest
+    @ValueSource(strings = { "final", "private", "private final" })
+    void LambdaUsingStaticFieldIsConvertedToStaticIfMatchesSpec(String modifier) {
+        rewriteRun(
+            java(String.format("""                    
+                    import java.util.ArrayList;
+                    import java.util.List;
+                    import java.util.stream.Collectors;
+                    
+                    public class A {
+                        static List<Integer> a = new ArrayList<>();
+                        static Integer something = 0;
+                    
+                        %s void foo() {
+                            a = a.stream()
+                                .map(it -> it + something)
+                                .collect(Collectors.toList());
+                        }
+                    }
+                    """, modifier),
+                String.format("""                    
+                    import java.util.ArrayList;
+                    import java.util.List;
+                    import java.util.stream.Collectors;
+                    
+                    public class A {
+                        static List<Integer> a = new ArrayList<>();
+                        static Integer something = 0;
+                    
+                        %s static void foo() {
+                            a = a.stream()
+                                    .map(it -> it + something)
+                                    .collect(Collectors.toList());
+                        }
+                    }
+                    """, modifier)                    
+            )
+        );
+    }     
+
+    @ParameterizedTest
+    @ValueSource(strings = { "public", "protected", "" })
+    void LambdaUsingStaticFieldIsUnchangedIfDoesNotMatchSpec(String modifier) {
+        rewriteRun(
+            java(String.format("""                    
+                    import java.util.ArrayList;
+                    import java.util.List;
+                    import java.util.stream.Collectors;
+                    
+                    public class A {
+                        static List<Integer> a = new ArrayList<>();
+                        static Integer something = 0;
+                    
+                        %s void foo() {
+                            a = a.stream()
+                                .map(it -> it + something)
+                                .collect(Collectors.toList());
+                        }
+                    }
+                    """, modifier)                   
+            )
+        );
+    }         
+
+    @ParameterizedTest
+    @ValueSource(strings = { "final", "private", "private final", "public", "protected", "" })
+    void ReturnStatementUsingInstanceFieldIsUnchanged(String modifier) {
+        rewriteRun(
+            java(String.format("""                    
                     import java.util.ArrayList;
                     import java.util.List;
                     import java.util.stream.Collectors;
@@ -1112,19 +564,20 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
                     
                         List<Integer> a = new ArrayList<>();
                     
-                        private List<Integer> foo() {
+                        %s List<Integer> foo() {
                             return this.a;
                         }
                     }
-                    """
+                    """, modifier)
             )
         );
     }     
 
-    @Test
-    void privateReturnStatementUsingStaticFieldIsConvertedToStatic() {
+    @ParameterizedTest
+    @ValueSource(strings = { "final", "private", "private final" })
+    void returnStatementUsingStaticFieldIsConvertedToStaticIfMatchesSpec(String modifier) {
         rewriteRun(
-            java("""                    
+            java(String.format("""
                     import java.util.ArrayList;
                     import java.util.List;
                     import java.util.stream.Collectors;
@@ -1133,12 +586,12 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
                     
                         static List<Integer> a = new ArrayList<>();
                     
-                        private List<Integer> foo() {
+                        %s List<Integer> foo() {
                             return a;
                         }
                     }
-                    """,
-                    """                    
+                    """, modifier),
+                String.format("""         
                         import java.util.ArrayList;
                         import java.util.List;
                         import java.util.stream.Collectors;
@@ -1147,19 +600,20 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
                         
                             static List<Integer> a = new ArrayList<>();
                         
-                            private static List<Integer> foo() {
+                            %s static List<Integer> foo() {
                                 return a;
                             }
                         }
-                    """                    
+                    """, modifier)
             )
         );
     }      
 
-    @Test
-    void publicReturnStatementUsingStaticFieldIsUnchanged() {
+    @ParameterizedTest
+    @ValueSource(strings = { "public", "protected", "" })
+    void returnStatementUsingStaticFieldIsUnchangedIfDoesNotMatchSpec(String modifier) {
         rewriteRun(
-            java("""                    
+            java(String.format("""
                     import java.util.ArrayList;
                     import java.util.List;
                     import java.util.stream.Collectors;
@@ -1168,11 +622,11 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
                     
                         static List<Integer> a = new ArrayList<>();
                     
-                        public List<Integer> foo() {
+                        %s List<Integer> foo() {
                             return a;
                         }
                     }
-                    """                   
+                    """, modifier)
             )
         );
     }       
