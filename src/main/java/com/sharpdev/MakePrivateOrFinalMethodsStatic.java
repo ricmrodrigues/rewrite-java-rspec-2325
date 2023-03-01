@@ -19,6 +19,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Value;
 import org.openrewrite.*;
 import org.openrewrite.internal.ListUtils;
+import org.openrewrite.internal.lang.Nullable;
 import org.openrewrite.java.JavaIsoVisitor;
 import org.openrewrite.java.tree.Flag;
 import org.openrewrite.java.tree.J;
@@ -27,8 +28,14 @@ import org.openrewrite.java.tree.J.FieldAccess;
 import org.openrewrite.java.tree.J.MethodInvocation;
 import org.openrewrite.java.tree.JavaType.Variable;
 import org.openrewrite.marker.Markers;
+import org.openrewrite.scheduling.WatchableExecutionContext;
+
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static java.util.Collections.emptyList;
 
 @Incubating(since = "7.0.0")
 public class MakePrivateOrFinalMethodsStatic extends Recipe {
@@ -46,34 +53,58 @@ public class MakePrivateOrFinalMethodsStatic extends Recipe {
     @Override
     public JavaIsoVisitor<ExecutionContext> getVisitor() {
         return new JavaIsoVisitor<ExecutionContext>() {
+            @Override
+            public @Nullable J visitSourceFile(SourceFile sourceFile, ExecutionContext p) {
+                SourceFile ss = (SourceFile) super.visitSourceFile(sourceFile, p);
 
-                @Override
-                public J.MethodDeclaration visitMethodDeclaration(J.MethodDeclaration method, ExecutionContext p) {
-                J.MethodDeclaration  md = super.visitMethodDeclaration(method, p);
+                SourceFile newSource = (SourceFile) new ApplyStaticIfApplicable().visitNonNull(ss, p);
+                WatchableExecutionContext ec = (WatchableExecutionContext) p;
+                while (ec.hasNewMessages()) {
+                    ec.resetHasNewMessages();
+                    newSource = (SourceFile) new ApplyStaticIfApplicable().visitNonNull(newSource, p);
+                    ec = (WatchableExecutionContext) p;
+                }           
 
-                // if this is not a private or final method, ignore
-                if (!md.hasModifier(J.Modifier.Type.Private) && !md.hasModifier(J.Modifier.Type.Final)) {
-                    return md;
-                }
+                return (J) newSource;
+            }    
+        };
+    }
 
-                // if this is already static or is a constructor, ignore
-                if (md.hasModifier(J.Modifier.Type.Static) || md.isConstructor()) {
-                    return md;
-                }
+    @Value
+    @EqualsAndHashCode(callSuper = true)
+    private static class ApplyStaticIfApplicable extends JavaIsoVisitor<ExecutionContext> {
 
-                J.ClassDeclaration classDecl = getCursor().dropParentUntil(parent -> parent instanceof J.ClassDeclaration).getValue();
+        private List<String> methodsToUpdateMeta = new ArrayList<>();
 
-                AtomicBoolean foundInstanceAccess = FindInstanceUsagesWithinMethod.find(getCursor().getValue(), md.getBody(), classDecl);
-                if (!foundInstanceAccess.get()) {
-                    md = autoFormat(
-                            md.withModifiers(
-                                    ListUtils.concat(md.getModifiers(), new J.Modifier(Tree.randomId(), Space.EMPTY, Markers.EMPTY, J.Modifier.Type.Static, Collections.emptyList()))
-                            ), p);
-                }
+        @Override
+        public J.MethodDeclaration visitMethodDeclaration(J.MethodDeclaration method, ExecutionContext p) {
+            J.MethodDeclaration md = super.visitMethodDeclaration(method, p);
+
+            // if this is not a private or final method, ignore
+            if (!md.hasModifier(J.Modifier.Type.Private) && !md.hasModifier(J.Modifier.Type.Final)) {
+                return md;
+            }
+
+            // if this is already static or is a constructor, ignore
+            if (md.hasModifier(J.Modifier.Type.Static) || md.isConstructor()) {
+                return md;
+            }
+
+            J.ClassDeclaration classDecl = getCursor().dropParentUntil(parent -> parent instanceof J.ClassDeclaration).getValue();
+
+            AtomicBoolean foundInstanceAccess = FindInstanceUsagesWithinMethod.find(getCursor().getValue(), md.getBody(), classDecl, p);
+            if (!foundInstanceAccess.get()) {
+                md = md.withModifiers(
+                            ListUtils.concat(md.getModifiers(), new J.Modifier(Tree.randomId(), Space.build(" ", emptyList()), Markers.EMPTY, J.Modifier.Type.Static, Collections.emptyList()))
+                    );
+
+                p.putMessage(md.getMethodType().toString(), true);
 
                 return md;
             }
-        };
+
+            return md;
+        }               
     }
 
     @Value
@@ -82,6 +113,7 @@ public class MakePrivateOrFinalMethodsStatic extends Recipe {
 
         J.Block block;
         J.ClassDeclaration rootClass;
+        ExecutionContext p;
 
         /**
          * @param subtree   The subtree to search.
@@ -89,8 +121,8 @@ public class MakePrivateOrFinalMethodsStatic extends Recipe {
          * @param rootClass  A {@link J.ClassDeclaration} root class to check if visited items belong.
          * @return An {@link AtomicBoolean} that is true if instance access has been found.
          */
-        static AtomicBoolean find(J subtree, J.Block block, J.ClassDeclaration rootClass) {
-            return new FindInstanceUsagesWithinMethod(block, rootClass)
+        static AtomicBoolean find(J subtree, J.Block block, J.ClassDeclaration rootClass, ExecutionContext p) {
+            return new FindInstanceUsagesWithinMethod(block, rootClass, p)
                     .reduce(subtree, new AtomicBoolean());
         }
 
@@ -129,8 +161,11 @@ public class MakePrivateOrFinalMethodsStatic extends Recipe {
             }
 
             MethodInvocation mi = super.visitMethodInvocation(method, hasInstanceAccess);
+            //if method was changed to static already, we can ignore it when checking here
+            Object isTargetStatic = p.getMessage(mi.getMethodType().toString());
 
-            if (!mi.getMethodType().hasFlags(Flag.Static) && rootClass.getType().equals(mi.getMethodType().getDeclaringType())) {
+            if (!mi.getMethodType().hasFlags(Flag.Static) && rootClass.getType().equals(mi.getMethodType().getDeclaringType())
+                && isTargetStatic == null) {
                 hasInstanceAccess.set(true);
             }
 

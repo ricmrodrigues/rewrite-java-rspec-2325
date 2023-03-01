@@ -31,6 +31,142 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
         spec.recipe(new MakePrivateOrFinalMethodsStatic());
     }
 
+    @Test
+    void transitiveMethodCallChangesToStatic() {
+        rewriteRun(
+            java("""                    
+                    class A {
+                        static int x;
+                        private void foo() {
+                            bar();
+                        }
+                        private void bar() {
+                            run();
+                        }
+                        private void run() {
+                            x++;
+                        }
+                    }             
+                    """,
+                    """                    
+                        class A {
+                            static int x;
+                            private static void foo() {
+                                bar();
+                            }
+                            private static void bar() {
+                                run();
+                            }
+                            private static void run() {
+                                x++;
+                            }
+                        }             
+                        """                                       
+            )
+        );
+    }
+
+    @Test
+    void transitiveMethodCallWithNonStaticFieldAccessDoesNotChange() {
+        rewriteRun(
+            java("""                    
+                    class A {
+                        static int x;
+                        int y;
+                        private void foo() {
+                            bar();
+                        }
+                        private void bar() {
+                            run();
+                        }
+                        private void run() {
+                            x++;
+                            y++;
+                        }
+                    }             
+                    """                                      
+            )
+        );
+    }
+
+    @Test
+    void transitiveMethodCallWithOtherFieldAccessDoesNotChange() {
+        rewriteRun(
+            java("""                    
+                    class A {
+                        static int x;
+                        int y;
+                        private void foo() {
+                            bar();
+                        }
+                        private void bar() {
+                            run();
+                            y++;
+                        }
+                        private void run() {
+                            x++;
+                        }
+                    }             
+                    """,
+                    """                    
+                        class A {
+                            static int x;
+                            int y;
+                            private void foo() {
+                                bar();
+                            }
+                            private void bar() {
+                                run();
+                                y++;                                
+                            }
+                            private static void run() {
+                                x++;
+                            }
+                        }             
+                        """                                       
+            )
+        );
+    }
+
+    @Test
+    void transitiveMethodCallWithOtherFieldAccessAboveDoesNotChange() {
+        rewriteRun(
+            java("""                    
+                    class A {
+                        static int x;
+                        int y;
+                        private void foo() {
+                            bar();
+                            y++;
+                        }
+                        private void bar() {
+                            run();                            
+                        }
+                        private void run() {
+                            x++;
+                        }
+                    }             
+                    """,
+                    """                    
+                        class A {
+                            static int x;
+                            int y;
+                            private void foo() {
+                                bar();
+                                y++;
+                            }
+                            private static void bar() {
+                                run();                                                         
+                            }
+                            private static void run() {
+                                x++;
+                            }
+                        }             
+                        """                                       
+            )
+        );
+    }
+
     @ParameterizedTest
     @ValueSource(strings = { "final", "private", "private final" })
     void callingStaticMethodChangesCallerToStaticOnNestedClass(String modifier) {
@@ -533,8 +669,8 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
                     
                         %s static void foo() {
                             a = a.stream()
-                                    .map(it -> it + something)
-                                    .collect(Collectors.toList());
+                                .map(it -> it + something)
+                                .collect(Collectors.toList());
                         }
                     }
                     """, modifier)                    
@@ -715,5 +851,5 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
                     """                   
             )
         );
-    }     
+    }          
 }
