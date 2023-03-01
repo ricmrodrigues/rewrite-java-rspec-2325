@@ -67,6 +67,49 @@ class MakePrivateOrFinalMethodsStaticTest implements RewriteTest {
     }
 
     @Test
+    void transitiveMethodCallWithFieldAccessOverloadStillChangesToStatic() {
+        rewriteRun(
+            java("""                    
+                    class A {
+                        static int x;
+                        int y;
+                        private void foo() {
+                            bar();
+                        }
+                        private void bar() {
+                            run();
+                        }
+                        private void run() {
+                            x++;
+                        }
+                        private void run(int a) {
+                            y++;
+                        }                        
+                    }             
+                    """,
+                    """                    
+                        class A {
+                            static int x;
+                            int y;
+                            private static void foo() {
+                                bar();
+                            }
+                            private static void bar() {
+                                run();
+                            }
+                            private static void run() {
+                                x++;
+                            }
+                            private void run(int a) {
+                                y++;
+                            }                            
+                        }             
+                        """                                       
+            )
+        );
+    }
+
+    @Test
     void transitiveMethodCallWithNonStaticFieldAccessDoesNotChange() {
         rewriteRun(
             java("""                    
